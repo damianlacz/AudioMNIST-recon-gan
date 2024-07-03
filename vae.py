@@ -1,5 +1,5 @@
 import tensorflow as tf
-from tensorflow.keras.losses import MeanSquaredError
+from tensorflow.keras.losses import KLDivergence, MeanSquaredError
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Lambda
 
@@ -9,33 +9,31 @@ class VAE(Model):
         self.encoder = encoder
         self.decoder = decoder
         self.mse_loss = MeanSquaredError()
-        self.beta = 1
-        self.reconstruction_loss_weight = 1
+        self.kl_loss = KLDivergence()
+        self._beta = 1
+        self._reconstruction_loss_weight = 10**4
 
-    @tf.function
-    def sample(self, inputs):
-        z_mean, z_log_var = inputs
-        batch = tf.shape(z_mean)[0]
-        dim = tf.shape(z_mean)[1]
-        epsilon = tf.keras.backend.random_normal(shape=(batch, dim))
-        return z_mean + tf.exp(0.5 * z_log_var) * epsilon
-
-    @tf.function
     def call(self, inputs):
         z_mean, z_log_var = self.encoder(inputs)
-        z = Lambda(self.sample)([z_mean, z_log_var])
+        z = self.sampling([z_mean, z_log_var])
         reconstructed = self.decoder(z)
         return reconstructed
 
-    @tf.function
     def compute_loss(self, inputs):
         z_mean, z_log_var = self.encoder(inputs)
         z = Lambda(self.sample)([z_mean, z_log_var])
         reconstructed = self.decoder(z)
-        reconstruction_loss = self.mse_loss(inputs, reconstructed)
-        kl_loss = -0.5 * tf.reduce_mean(z_log_var - tf.square(z_mean) - tf.exp(z_log_var) + 1)
-        total_loss = self.reconstruction_loss_weight * reconstruction_loss + self.beta * kl_loss
-        return total_loss, self.beta * kl_loss, self.reconstruction_loss_weight * reconstruction_loss
+        reconstruction_loss = self._reconstruction_loss_weight * self.mse_loss(inputs, reconstructed)
+        kl_loss = self._beta * self.kl_loss(inputs, reconstructed)
+        total_loss = reconstruction_loss + kl_loss
+        return total_loss, kl_loss, reconstruction_loss
+    
+    def sample(self, inputs):
+        mean, logvar = inputs
+        batch = tf.shape(mean)[0]
+        dim = tf.shape(mean)[1]
+        epsilon = tf.keras.backend.random_normal(shape=(batch, dim))
+        return mean + tf.exp(0.5 * logvar) * epsilon
 
     @tf.function
     def train_step(self, data):
@@ -47,12 +45,11 @@ class VAE(Model):
                 "kl_loss": kl_loss,
                 "reconstruction_loss": reconstruction_loss}
     
-    @tf.function
     def test_step(self, inputs):
         z_mean, z_log_var = self.encoder(inputs)
         z = Lambda(self.sample)([z_mean, z_log_var])
         reconstructed = self.decoder(z)
-        reconstruction_loss = self.mse_loss(inputs, reconstructed)
-        kl_loss = -0.5 * tf.reduce_mean(1 + z_log_var - tf.square(z_mean) - tf.exp(z_log_var))
+        reconstruction_loss = self._beta * self.mse_loss(inputs, reconstructed)
+        kl_loss = self._reconstruction_loss_weight * self.kl_loss
         total_loss = reconstruction_loss + kl_loss
         return {"total_loss" : total_loss}
