@@ -11,11 +11,11 @@ class VAE(Model):
         self.mse_loss = MeanSquaredError()
         self.kl_loss = KLDivergence()
         self._beta = 1
-        self._reconstruction_loss_weight = 10**4
+        self._reconstruction_loss_weight = 10**5
 
     def call(self, inputs):
         z_mean, z_log_var = self.encoder(inputs)
-        z = self.sampling([z_mean, z_log_var])
+        z = self.sample([z_mean, z_log_var])
         reconstructed = self.decoder(z)
         return reconstructed
 
