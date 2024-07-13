@@ -10,9 +10,9 @@ class GAN(tf.keras.Model):
         self.binary_cross_entropy = BinaryCrossentropy(from_logits = True)
 
         self.gen_loss_weight = 1
-        self.real_loss_noise_weight = 1
+        self.real_loss_noise_weight = 0.1
         self.real_loss_weight = 1024
-        self.fake_loss_noise_weight = 1
+        self.fake_loss_noise_weight = 0.1
         self.fake_loss_weight = 1024
 
         self.batch_size = kwargs.get('batch_size', 32)
@@ -51,4 +51,4 @@ class GAN(tf.keras.Model):
         
 
     def predict(self, x):
-        self.generator(x, training = False)
+        return self.generator(x, training = False)
