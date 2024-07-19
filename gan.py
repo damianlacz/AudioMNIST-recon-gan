@@ -10,9 +10,9 @@ class GAN(tf.keras.Model):
         self.binary_cross_entropy = BinaryCrossentropy(from_logits = True)
 
         self.gen_loss_weight = 1
-        self.real_loss_noise_weight = 0.2
+        self.real_loss_noise_weight = 0.15
         self.real_loss_weight = 1
-        self.fake_loss_noise_weight = 0.2
+        self.fake_loss_noise_weight = 0.15
         self.fake_loss_weight = 1
 
         self.batch_size = kwargs.get('batch_size', 32)
@@ -36,7 +36,6 @@ class GAN(tf.keras.Model):
         disc_loss = real_loss + fake_loss
 
         return gen_loss, disc_loss, real_loss, fake_loss
-    
     @tf.function
     def train_step(self, data):
         with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
